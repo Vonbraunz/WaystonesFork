@@ -93,6 +93,7 @@ public class GuiButtonWaystone extends GuiButton {
 
         if (!showAtlasButton && !parentGui.isFree()
             && Waystones.getConfig().xpBaseCost > -1
+            && xpCost > 0
             && !Minecraft.getMinecraft().thePlayer.capabilities.isCreativeMode) {
             // Cost
             int color = (Minecraft.getMinecraft().thePlayer.experienceLevel >= xpCost) ? 0x36A336 : 0xFF5555;// 0x55FF55

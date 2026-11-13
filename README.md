@@ -35,7 +35,7 @@ Teleport back to activated waystones. For Survival, Adventure or Servers.
 * Configurable worldgen.
 * Automatic activation upon naming.
 * Configurable [Village Names](https://modrinth.com/mod/village-names) mod compatibility.
-* Configurable teleportation XP level cost. Flat cost, distance cost, flat cross-dim cost.
+* Configurable teleportation XP level cost. Flat cost, distance cost, flat cross-dim cost. Per-dimension exemption via `xpFreeDimensions`, so overworld/nether/end waystones can be free while other dimensions still charge.
 * Configurable independent teleportation cooldowns. Cooldown status indicator.
 * Waystone list sorting by Name and Distance.
 * Waystone list filtering.

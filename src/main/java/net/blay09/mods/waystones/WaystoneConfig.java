@@ -1,5 +1,8 @@
 package net.blay09.mods.waystones;
 
+import java.util.ArrayList;
+import java.util.List;
+
 import net.blay09.mods.waystones.util.NameGenerator;
 import net.minecraftforge.common.config.Configuration;
 
@@ -48,6 +51,8 @@ public class WaystoneConfig {
     public int xpBaseCost;
     public int xpBlocksPerLevel;
     public int xpCrossDimCost;
+    public int[] xpFreeDimensions;
+    public boolean xpFreeDimensionsMatchSource;
 
     public static boolean menusPauseGame;
 
@@ -281,6 +286,23 @@ public class WaystoneConfig {
             Integer.MAX_VALUE,
             "How many XP levels are consumed for teleporting to another dimension.");
 
+        // string list on purpose. 1.7.10's config api has isIntList but never got a getIntList, so we parse by hand.
+        xpFreeDimensions = parseDimensionList(
+            config.getStringList(
+                "xpFreeDimensions",
+                Categories.general,
+                new String[] {},
+                "Dimension ids where teleporting to a Waystone costs no XP levels at all, "
+                    + "skipping the base, distance and cross-dimension cost. Empty = charge everywhere. "
+                    + "One id per line, e.g. 0, -1 and 1 for overworld, nether and end."));
+
+        xpFreeDimensionsMatchSource = config.getBoolean(
+            "xpFreeDimensionsMatchSource",
+            Categories.general,
+            false,
+            "If true, a teleport is only free when the dimension you warp from is also in xpFreeDimensions. "
+                + "Otherwise only the destination dimension matters.");
+
         sortingMode = config.getInt(
             "sortingMode",
             Categories.client,
@@ -427,6 +449,31 @@ public class WaystoneConfig {
         return UnnamedWaystoneNaming.SUGGEST;
     }
 
+    private static int[] parseDimensionList(String[] entries) {
+        List<Integer> dimensions = new ArrayList<>();
+        if (entries != null) {
+            for (String entry : entries) {
+                if (entry == null) {
+                    continue;
+                }
+                String trimmed = entry.trim();
+                if (trimmed.isEmpty()) {
+                    continue;
+                }
+                try {
+                    dimensions.add(Integer.parseInt(trimmed));
+                } catch (NumberFormatException e) {
+                    Waystones.LOG.error("Ignoring invalid dimension id '{}' in xpFreeDimensions", trimmed);
+                }
+            }
+        }
+        int[] result = new int[dimensions.size()];
+        for (int i = 0; i < result.length; i++) {
+            result[i] = dimensions.get(i);
+        }
+        return result;
+    }
+
     public static WaystoneConfig read(ByteBuf buf) {
         WaystoneConfig config = new WaystoneConfig();
         config.teleportButton = buf.readBoolean();
@@ -462,6 +509,21 @@ public class WaystoneConfig {
         config.nameMiddles = readStrings(buf);
         config.nameEndings = readStrings(buf);
         config.nameBiomeWords = readStrings(buf);
+
+        // appended at the end and guarded, so an unpatched peer just gets the old stock behaviour
+        // instead of reading past the end of the packet
+        if (buf.isReadable()) {
+            int freeDimensionCount = buf.readInt();
+            config.xpFreeDimensions = new int[freeDimensionCount];
+            for (int i = 0; i < freeDimensionCount; i++) {
+                config.xpFreeDimensions[i] = buf.readInt();
+            }
+        } else {
+            config.xpFreeDimensions = new int[0];
+        }
+        if (buf.isReadable()) {
+            config.xpFreeDimensionsMatchSource = buf.readBoolean();
+        }
         return config;
     }
 
@@ -499,6 +561,12 @@ public class WaystoneConfig {
         writeStrings(buf, nameMiddles);
         writeStrings(buf, nameEndings);
         writeStrings(buf, nameBiomeWords);
+        int[] freeDimensions = xpFreeDimensions != null ? xpFreeDimensions : new int[0];
+        buf.writeInt(freeDimensions.length);
+        for (int freeDimension : freeDimensions) {
+            buf.writeInt(freeDimension);
+        }
+        buf.writeBoolean(xpFreeDimensionsMatchSource);
     }
 
     private static String[] readStrings(ByteBuf buf) {

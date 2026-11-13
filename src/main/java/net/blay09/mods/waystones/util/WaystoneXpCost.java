@@ -6,9 +6,34 @@ import net.minecraft.entity.player.EntityPlayer;
 
 public class WaystoneXpCost {
 
+    // full exemption for the listed dimensions. costs nothing, no base, no distance, no cross-dim surcharge.
+    public static boolean isFreeDimension(int dimensionId) {
+        int[] freeDimensions = Waystones.getConfig().xpFreeDimensions;
+        if (freeDimensions == null) {
+            return false;
+        }
+        for (int freeDimension : freeDimensions) {
+            if (freeDimension == dimensionId) {
+                return true;
+            }
+        }
+        return false;
+    }
+
+    private static boolean isFreeTeleport(int fromDimensionId, WaystoneEntry to) {
+        if (!isFreeDimension(to.getDimensionId())) {
+            return false;
+        }
+        // if the source has to match as well, warping out of a paid dimension into the overworld still costs
+        return !Waystones.getConfig().xpFreeDimensionsMatchSource || isFreeDimension(fromDimensionId);
+    }
+
     public static int getXpCost(EntityPlayer player, WaystoneEntry to) {
         if (Waystones.getConfig().xpBaseCost < 0) {
             return -1;
+        }
+        if (isFreeTeleport(player.worldObj.provider.dimensionId, to)) {
+            return 0;
         }
         int base = Waystones.getConfig().xpBaseCost;
         int blocksPerLevel = Waystones.getConfig().xpBlocksPerLevel;
@@ -50,6 +75,10 @@ public class WaystoneXpCost {
         if (from == null) {
             return getXpCost(player, to);
         }
+        WaystoneEntry fromEntry = entryFromTile(from, player);
+        if (fromEntry != null && isFreeTeleport(fromEntry.getDimensionId(), to)) {
+            return 0;
+        }
         int base = Waystones.getConfig().xpBaseCost;
         int blocksPerLevel = Waystones.getConfig().xpBlocksPerLevel;
 
@@ -58,7 +87,6 @@ public class WaystoneXpCost {
         }
 
         // Cross-dimension cost
-        WaystoneEntry fromEntry = entryFromTile(from, player);
         if (fromEntry != null) {
             if (fromEntry.getDimensionId() != to.getDimensionId()) {
                 return base + Waystones.getConfig().xpCrossDimCost;
